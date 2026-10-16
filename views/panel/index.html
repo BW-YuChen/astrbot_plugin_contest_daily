@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>竞赛日报 · 推送测试</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --card: #ffffff;
+        --border: #e3e6ea;
+        --text: #1f2328;
+        --muted: #656d76;
+        --primary: #2f6feb;
+        --primary-text: #ffffff;
+        --ok-bg: #e8f5ec;
+        --ok-fg: #1a7f37;
+        --warn-bg: #fff4e5;
+        --warn-fg: #9a6700;
+        --bad-bg: #fdecec;
+        --bad-fg: #c62828;
+        --skip-bg: #eef1f5;
+        --skip-fg: #57606a;
+        --info-bg: #eaf1fd;
+        --info-fg: #1f5fd0;
+        --field: #ffffff;
+      }
+
+      [data-theme="dark"] {
+        --bg: #16181d;
+        --card: #1e2127;
+        --border: #2f343c;
+        --text: #e6edf3;
+        --muted: #9aa4af;
+        --primary: #4c8dff;
+        --primary-text: #0b1220;
+        --ok-bg: #16301f;
+        --ok-fg: #62d08a;
+        --warn-bg: #33290f;
+        --warn-fg: #e3b341;
+        --bad-bg: #3a1d1d;
+        --bad-fg: #ff8a80;
+        --skip-bg: #262b33;
+        --skip-fg: #adb7c2;
+        --info-bg: #182a4a;
+        --info-fg: #8fb8ff;
+        --field: #16181d;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        padding: 18px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+
+      .card .k { color: var(--muted); font-size: 12px; }
+      .card .v { font-size: 20px; font-weight: 600; margin-top: 2px; word-break: break-all; }
+      .card .v.small { font-size: 14px; font-weight: 500; }
+
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+      .actions.small { margin-bottom: 10px; }
+
+      button {
+        font: inherit;
+        border-radius: 8px;
+        padding: 9px 18px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--text);
+        cursor: pointer;
+        transition: opacity .15s ease, transform .05s ease;
+      }
+
+      button:hover:not(:disabled) { opacity: .88; }
+      button:active:not(:disabled) { transform: translateY(1px); }
+      button:disabled { opacity: .5; cursor: not-allowed; }
+
+      button.primary {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: var(--primary-text);
+        font-weight: 600;
+      }
+
+      button.mini { padding: 4px 10px; font-size: 12.5px; border-radius: 6px; }
+
+      .hint { color: var(--muted); font-size: 12.5px; margin: -4px 0 12px; }
+
+      .panel {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 14px;
+      }
+
+      .panel h2 { font-size: 14px; margin: 0 0 8px; }
+
+      .empty { color: var(--muted); }
+
+      ul.sessions { list-style: none; margin: 0; padding: 0; }
+
+      ul.sessions li {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        padding: 7px 0;
+        border-bottom: 1px dashed var(--border);
+      }
+
+      ul.sessions li:last-child { border-bottom: none; }
+
+      .tag {
+        flex: none;
+        font-size: 12px;
+        padding: 1px 8px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+
+      .tag.sent    { background: var(--ok-bg);   color: var(--ok-fg); }
+      .tag.denied  { background: var(--bad-bg);  color: var(--bad-fg); }
+      .tag.failed  { background: var(--warn-bg); color: var(--warn-fg); }
+      .tag.skipped { background: var(--skip-bg); color: var(--skip-fg); }
+      .tag.info    { background: var(--info-bg); color: var(--info-fg); }
+
+      .umo { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+             font-size: 12.5px; word-break: break-all; color: var(--muted); }
+      .label { color: var(--muted); font-size: 12.5px; font-weight: 400; }
+      ul.sessions .name { font-weight: 600; flex: none; }
+
+      /* ---------- 目标会话（可勾选 + 备注） ---------- */
+      ul.targets { list-style: none; margin: 0; padding: 0; }
+
+      ul.targets li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 0;
+        border-bottom: 1px dashed var(--border);
+        flex-wrap: wrap;
+      }
+
+      ul.targets li:last-child { border-bottom: none; }
+
+      .pickline { display: flex; align-items: center; gap: 8px; flex: 1 1 240px; cursor: pointer; }
+      .pickline input { width: 16px; height: 16px; flex: none; cursor: pointer; }
+      .pickline .name { font-weight: 600; }
+      .pickline .name.unnamed { font-weight: 400; color: var(--muted); }
+
+      .aliasbox { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; }
+
+      input.alias-input {
+        font: inherit;
+        font-size: 12.5px;
+        padding: 4px 8px;
+        width: 150px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--field);
+        color: var(--text);
+      }
+
+      input.alias-input:focus { outline: 1px solid var(--primary); }
+
+      /* ---------- 提醒计划 ---------- */
+      ul.plan { list-style: none; margin: 0; padding: 0; }
+
+      ul.plan li {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        padding: 8px 0;
+        border-bottom: 1px dashed var(--border);
+      }
+
+      ul.plan li:last-child { border-bottom: none; }
+
+      ul.plan label { display: flex; align-items: baseline; gap: 8px; cursor: pointer;
+                      flex: 1 1 auto; flex-wrap: wrap; }
+      ul.plan input[type="radio"] { width: 15px; height: 15px; flex: none; cursor: pointer;
+                                    transform: translateY(2px); }
+      .ptitle { font-weight: 600; }
+      .ptime { color: var(--muted); font-size: 12.5px; }
+
+      .banner {
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        white-space: pre-wrap;
+        display: none;
+      }
+
+      .banner.show { display: block; }
+      .banner.ok   { background: var(--ok-bg);   color: var(--ok-fg); }
+      .banner.warn { background: var(--warn-bg); color: var(--warn-fg); }
+      .banner.err  { background: var(--bad-bg);  color: var(--bad-fg); }
+
+      /* ---------- 名言库（可视化管理） ---------- */
+      .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+
+      select, input.search-input, input.new-input {
+        font: inherit;
+        font-size: 12.5px;
+        padding: 5px 8px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--field);
+        color: var(--text);
+      }
+
+      input.search-input { flex: 1 1 180px; min-width: 140px; }
+      input.search-input:focus, input.new-input:focus, select:focus { outline: 1px solid var(--primary); }
+
+      .addbox {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 0 4px;
+        border-top: 1px dashed var(--border);
+      }
+
+      .addbox input.new-input { flex: 1 1 240px; }
+
+      ul.quotes {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        max-height: 420px;
+        overflow-y: auto;
+      }
+
+      ul.quotes li {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px dashed var(--border);
+        flex-wrap: wrap;
+      }
+
+      ul.quotes li:last-child { border-bottom: none; }
+      ul.quotes li.off { opacity: .55; }
+
+      .qtext { flex: 1 1 260px; }
+      .qby { color: var(--muted); font-size: 12.5px; }
+
+      /* ---------- 缓存维护 ---------- */
+      ul.cache { list-style: none; margin: 0; padding: 0; }
+
+      ul.cache li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px dashed var(--border);
+        flex-wrap: wrap;
+      }
+
+      ul.cache li:last-child { border-bottom: none; }
+      ul.cache .cname { flex: 1 1 240px; font-weight: 600; }
+      ul.cache .cnum { color: var(--muted); font-size: 12.5px; }
+
+      footer { color: var(--muted); font-size: 12.5px; margin-top: 14px; }
+    </style>
+  </head>
+  <body>
+    <h1>推送测试</h1>
+    <div class="sub">
+      「定时日报 / 赛前提醒」走的是平台<b>主动消息</b>权限。下面可以<b>只挑几个会话</b>
+      立刻试一条日报或提醒，一眼看出哪个群还没配好，不必等到点、也不会惊动所有群。<br />
+      另外还有 <b>④ 名言库</b>（逐条看全部名言、屏蔽或新增）和 <b>⑤ 缓存维护</b>（一键清掉
+      /cf、/nk 的查询缓存）。
+    </div>
+
+    <div class="cards">
+      <div class="card"><div class="k">日报推送时间</div><div class="v" id="c-time">—</div></div>
+      <div class="card"><div class="k">订阅会话</div><div class="v" id="c-subs">—</div></div>
+      <div class="card"><div class="k">今天已送达</div><div class="v" id="c-sent">—</div></div>
+      <div class="card"><div class="k">赛程缓存</div><div class="v small" id="c-cache">—</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>① 目标会话 <span class="label" id="targets-hint"></span></h2>
+      <div class="hint">
+        测试消息<b>只会发给你勾选的会话</b>（一个都没勾时按钮点不动）——
+        免得一按就惊动所有群。给每个群填个备注，以后就不用再对着那串 umo 猜是哪个群了；
+        想按老习惯「每个群都推一条」，点「全选」即可。
+      </div>
+      <div class="actions small">
+        <button class="mini" id="btn-all">全选</button>
+        <button class="mini" id="btn-none">全不选</button>
+        <button class="mini" id="btn-unread">只选今天还没收到日报的</button>
+      </div>
+      <div id="targets" class="empty">正在读取…</div>
+    </div>
+
+    <div class="panel">
+      <h2>② 赛前提醒计划 <span class="label" id="plan-hint"></span></h2>
+      <div class="hint">
+        按<b>提醒时刻</b>升序列出接下来会提醒的比赛（提醒时刻 = 开赛时间 − 提前量）。
+        选一场作为「测试提醒」的内容，不选就用最上面那场。
+        测试提醒<b>不记入「已提醒」</b>，不会把当天真正的赛前提醒顶掉。
+      </div>
+      <div id="plan" class="empty">正在读取…</div>
+    </div>
+
+    <div class="panel">
+      <h2>③ 测试动作</h2>
+      <div class="banner" id="banner"></div>
+      <div class="actions">
+        <button class="primary" id="btn-push">立即推送日报测试</button>
+        <button class="primary" id="btn-remind">测试赛前提醒</button>
+        <button id="btn-reset">重置今天的推送状态</button>
+        <button id="btn-refresh">刷新状态</button>
+      </div>
+      <div class="hint" id="hint-line"></div>
+    </div>
+
+    <div class="panel">
+      <h2>④ 名言库 <span class="label" id="quotes-hint"></span></h2>
+      <div class="hint">
+        日报末尾那句 <b>〖…〗</b> 就从这里出。<b>全部名言都列在下面</b>（内置的 + 你自己加的，
+        含已经被屏蔽的）—— 看到不合适的点「屏蔽」，它就不会再被抽中；想加自己的句子就用
+        下面的输入框。<br />
+        内置库在插件代码里改不动（升级插件会覆盖），所以「屏蔽」与「自定义」都单独存在
+        <b>data/quotes.json</b>，升级不丢。
+      </div>
+      <div class="toolbar">
+        <select id="quote-cat"></select>
+        <input id="quote-search" class="search-input" type="text" placeholder="搜正文或出处…" />
+        <button class="mini" id="btn-only-blocked">只看已屏蔽</button>
+        <button class="mini" id="btn-quote-reset">重置筛选</button>
+      </div>
+      <div class="addbox">
+        <input id="quote-new-text" class="new-input" type="text" placeholder="新名言正文（≤60 字）" />
+        <input id="quote-new-by" class="new-input" type="text" style="flex:0 1 180px" placeholder="出处（可空）" />
+        <button class="mini primary" id="btn-quote-add">添加</button>
+      </div>
+      <div class="banner" id="quote-banner"></div>
+      <div id="quotes" class="empty">正在读取…</div>
+    </div>
+
+    <div class="panel">
+      <h2>⑤ 缓存维护 <span class="label" id="cache-hint"></span></h2>
+      <div class="hint">
+        战绩查询结果（用户档案、单场成绩、题库映射）会存在本地缓存里，正常情况下
+        10 分钟~24 小时自动过期。第三方接口抽风、改版时，缓存里那半截数据会一直显示到
+        过期为止，看着就像「插件坏了」—— 清一次立刻重查，是最快的自救手段。<br />
+        <b>赛程缓存（比赛数据）不在其中</b>，点这里的按钮不会碰它，订阅 / 提醒 /
+        已推送记录也都不受影响。等价指令：<b>/清缓存 cf</b>、<b>/清缓存 nk</b>。
+      </div>
+      <div class="banner" id="cache-banner"></div>
+      <div id="cache" class="empty">正在读取…</div>
+    </div>
+
+    <div class="panel">
+      <h2 id="sessions-title">订阅会话明细</h2>
+      <div id="sessions" class="empty">正在读取…</div>
+    </div>
+
+    <footer>
+      改过「每日日报推送时间」后，插件会自动把当天的「已推送」记录清零，所有群重新收一遍。
+      也可以在这里点「重置今天的推送状态」。<br />
+      群 ID 与备注的映射表存在 <b>data/group_aliases.json</b>，退订重订阅不会丢；
+      在群里也能改：<b>/群备注 &lt;群号片段&gt; &lt;备注&gt;</b>。<br />
+      名言库的屏蔽名单与自定义句子存在 <b>data/quotes.json</b>；
+      面板打不开时还能用 <b>/名言 库</b>（看全库概要）与 <b>/清缓存 cf|nk</b>。<br />
+      面板打不开时（老版本 AstrBot 没有可视化视图），在群里 @机器人 发 <b>/推送测试</b>、
+      <b>/提醒测试</b> 同样能用，后面跟上备注关键词还能只发某一个群。
+    </footer>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

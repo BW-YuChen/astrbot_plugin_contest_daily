@@ -1,0 +1,368 @@
+{
+  "daily_time": {
+    "description": "每日日报推送时间",
+    "type": "string",
+    "default": "09:00",
+    "hint": "24 小时制 HH:MM，按北京时间（UTC+8）。例如 09:00 表示每天早上 9 点推送。✅ 改完这个值会**立刻重新测一遍**：插件会把「今天已经推送过」的记录清零，所以所有订阅群（包括今天已经收到过的）都会重新收一条；改后的时间点如果已经过了，本轮马上就会跑。想立刻手动试一次，可以用「推送测试」面板（插件详情页 → 推送测试）或群里发 /推送测试。不想要「改时间就重推」的话，把下面的 daily_reset_on_time_change 关掉。"
+  },
+  "daily_reset_on_time_change": {
+    "description": "改了推送时间就重置当天「已推送」记录",
+    "type": "bool",
+    "default": true,
+    "hint": "开（默认）：一改 daily_time，就把当天「已推送」记录清零 —— 所有订阅群都会重新收一遍日报（已经收到的也会）。适合「刚调完群权限、想马上验证」的场景。关：保持旧行为，改时间只影响还没送出的会话，已经收到的群不会被重复打扰。判定依据是**存盘的**时间指纹，重载插件也有效；而且只在「今天的记录」上生效，不会影响其它日期。"
+  },
+  "remind_minutes": {
+    "description": "赛前提醒提前量（分钟）",
+    "type": "int",
+    "default": 15,
+    "hint": "比赛开赛前多少分钟推送提醒。0 表示关闭赛前提醒。改完不用等：打开插件详情页的「推送测试」面板，② 区会列出「哪场比赛、几点提醒、已经提醒过几个群」，并在 ③ 区用「测试赛前提醒」按钮立刻试一条（只发给勾选的群，且不会顶掉当天真正的提醒）。群里也能发 /提醒测试。"
+  },
+  "lookahead_days": {
+    "description": "日报末尾「未来 N 天」区块的天数（只影响日报）",
+    "type": "int",
+    "default": 7,
+    "hint": "只影响日报末尾那个可选区块；`/赛程` 指令的天数看下面的「upcoming_days」，两者互相独立。上限固定为 7 天（超过按 7 天算）。⚠️ 口径：**不含今天**，明天算第 1 天（填 7 = 明天起 7 个自然日）——因为今天的比赛日报正文里已经按平台列过了，不重复。"
+  },
+  "upcoming_days": {
+    "description": "/赛程 指令的默认天数（只影响 /赛程）",
+    "type": "int",
+    "default": 7,
+    "hint": "只影响 `/赛程` 指令没带参数时的默认天数，与日报区块的「未来」天数互相独立。上限固定为 7 天（超过按 7 天算）。⚠️ 口径与日报不同：**含今天剩余场次**，今天算第 1 天——手动查赛程时最关心「今晚还有没有比赛」。例：填 1 = 今天剩下没开赛的；填 2 = 今天剩下的 + 明天一整天。（旧版本这个值由 lookahead_days 一并控制，现已拆开。）"
+  },
+  "refresh_minutes": {
+    "description": "赛程抓取间隔（分钟）",
+    "type": "int",
+    "default": 30,
+    "hint": "建议 30 分钟。抓取会访问 codeforces.com 与 ac.nowcoder.com，不建议低于 10 分钟。"
+  },
+  "cache_cleanup_minutes": {
+    "description": "缓存清理间隔（分钟）",
+    "type": "int",
+    "default": 30,
+    "hint": "插件每隔这段时间清一次缓存：过期条目、超出条数上限的战绩缓存、已结束比赛的提醒记录、卡片图与头像（含体积兜底）。清完会写日志。默认 30 分钟，不建议超过 60。⚠️ 清理跑在独立的后台任务里，不与日报 / 提醒 / 指令串行：它删文件再慢也不会推迟日报发送，也不会卡住你正在发的指令；有战绩查询正在跑时会自动让路到下一轮。"
+  },
+  "sources": {
+    "description": "启用的数据源",
+    "type": "list",
+    "default": [
+      "cf",
+      "nowcoder"
+    ],
+    "hint": "可选 cf（Codeforces）、nowcoder（牛客）。后续可扩展 atcoder / luogu。"
+  },
+  "nowcoder_categories": {
+    "description": "牛客收录哪些分类的比赛",
+    "type": "list",
+    "default": [
+      13,
+      14
+    ],
+    "hint": "牛客赛事页按顶级分类分页，可填 13 / 14 / 15 的组合：13 = 牛客系列赛（练习赛·周赛·挑战赛·小白月赛·集训营）；14 = 高校校赛（各校校赛与同步赛，如「XX大学程序设计竞赛(同步赛)」）；15 = 自主创建赛（任何人自建，数量极多，**默认不收录**）。默认 [13, 14]。填几个分类就发几次请求（间隔 2 秒，避免风控），所以别贪多。想连自主创建一起收就填 [13,14,15]。"
+  },
+  "platform_emoji": {
+    "description": "各平台的标识 emoji",
+    "type": "dict",
+    "default": {
+      "cf": "🔵",
+      "nowcoder": "🟠",
+      "atcoder": "🟣",
+      "luogu": "🟢"
+    },
+    "hint": "用于在消息中区分平台，不用可留默认。"
+  },
+  "only_rated": {
+    "description": "只推送 Rated 场次",
+    "type": "bool",
+    "default": false,
+    "hint": "开启后会过滤掉娱乐赛、非计分场次。"
+  },
+  "platform_names": {
+    "description": "各平台的显示名称",
+    "type": "dict",
+    "default": {
+      "cf": "Codeforces",
+      "nowcoder": "牛客竞赛",
+      "atcoder": "AtCoder",
+      "luogu": "洛谷"
+    },
+    "hint": "出现在日报的平台分组标题与赛前提醒里。例如把 nowcoder 的值改成「牛客」即可。"
+  },
+  "remind_template": {
+    "description": "赛前提醒消息模板",
+    "type": "text",
+    "default": "⏰ {platform} 比赛即将开始\n🏷 {title}\n🕐 {datetime}（北京时间）\n⌛️时长{minutes}分钟\n🔗 {url}\n🚩大家加油哦",
+    "hint": "占位符：{platform} 平台名 / {title} 比赛名 / {datetime} 完整时间(2026-10-14 22:35) / {date} 仅日期 / {time} 仅时间 / {minutes} 时长(分钟,如120) / {duration} 时长(如2h15m) / {url} 链接 / {minutes_ahead} 提前量。用换行控制排版，整条消息就是这段模板。"
+  },
+  "daily_title": {
+    "description": "日报标题",
+    "type": "string",
+    "default": "🌅 今日比赛日报",
+    "hint": "可用占位符：{date} 日期、{total} 今日比赛总场次。"
+  },
+  "daily_section": {
+    "description": "日报中「单个平台」的区块模板",
+    "type": "text",
+    "default": "— {platform} —\n{items}",
+    "hint": "占位符：{platform} 平台名 / {items} 该平台下的比赛条目（自动按行拼好）/ {count} 场次数。⚠️ 必须保留 {items}，否则区块里只有标题、一条比赛都不显示（漏写时插件会自动补在末尾，但仍建议写上）。没有比赛的平台不会渲染这个区块，所以空标题不会出现。"
+  },
+  "daily_item": {
+    "description": "日报中「单场比赛」的模板",
+    "type": "text",
+    "default": "⏰{time} {title}\n🔗{url}",
+    "hint": "占位符：{time} 开赛时间(22:35) / {title} 比赛名称 / {url} 链接 / {date} 日期 / {when} 今日·明日·周六 / {weekday} 周几 / {platform} 平台名 / {duration} 时长 / {minutes} 时长(分钟)。默认在比赛名下一行附 🔗链接（改这里的换行即可调整排版）；若某场比赛没有链接，那一行会自动消失，不会留下光秃秃的 🔗。"
+  },
+  "daily_empty": {
+    "description": "当天完全没有比赛时的提示语",
+    "type": "text",
+    "default": "今日没有Codeforces与牛客的竞赛，但依旧要坚持学习哦(*^-^)ﾉ🎉",
+    "hint": "当天 Codeforces 和牛客都没有比赛时，日报只输出「标题 + 这段话」。"
+  },
+  "daily_upcoming_section": {
+    "description": "（可选）日报末尾追加「未来 N 天」区块模板",
+    "type": "text",
+    "default": "",
+    "hint": "留空 = 不显示（默认）。想显示就填写，例如：— 未来 {days} 天 —\\n{items}。可用 {days} 天数、{items} 条目、{count} 场次。⚠️ 必须保留 {items}，只写标题的话区块里不会出现任何比赛（漏写时插件会自动补上）。⚠️ {days} = lookahead_days，口径为「明天起 N 个自然日」，**不含今天**（与 /赛程 不同）。"
+  },
+  "daily_upcoming_item": {
+    "description": "（可选）未来赛程单条模板",
+    "type": "text",
+    "default": "{date} {time} {platform} {title}\n🔗{url}",
+    "hint": "仅当上面的「未来 N 天区块模板」填了内容时才生效。占位符：{date} 日期 / {time} 时间 / {when} 今日·明日·后天·周六 / {weekday} 周几 / {platform} 平台名 / {title} 比赛名称 / {duration} 时长 / {url} 链接。默认在比赛下一行附 🔗链接。例：{when} {time} {platform} {title}"
+  },
+  "daily_item_attach_url": {
+    "description": "日报 / 赛程：条目模板没写 {url} 时自动补一行 🔗链接",
+    "type": "bool",
+    "default": true,
+    "hint": "默认开启。开启后，只要「单场比赛模板」（日报 daily_item、未来赛程 daily_upcoming_item、赛程 upcoming_item）里没有 {url}，插件会自动在比赛下面补一行 🔗链接（老配置升级后也能立刻看到链接）；某场比赛没有链接时该行自动消失。关掉 = 完全按你写的模板输出，不加任何东西。模板里本来就写了 {url} 时此项无影响。"
+  },
+  "daily_quote": {
+    "description": "日报末尾的「名言彩蛋」模板",
+    "type": "text",
+    "default": "〖{quote}〗",
+    "hint": "留空 = 不显示。默认追加在日报最末尾，形如 〖AC 一时爽，一直 AC 一直爽〗。占位符：{quote} 整句（含出处，如「… —— Donald Knuth」）/ {quote_text} 只有正文 / {quote_by} 只有出处 / {quote_cat} 分类名（名家名言·圈内梗·竞赛鸡汤·自定义）。想把名言放到标题下面？把这四个占位符写进 daily_title 即可（daily_title / daily_section / daily_empty 都支持）。比如 daily_title 写「🌅 今日比赛日报\\n〖{quote}〗」。"
+  },
+  "daily_quote_cats": {
+    "description": "名言彩蛋：启用哪些分类",
+    "type": "list",
+    "default": ["classic", "meme", "cheer"],
+    "hint": "可选：classic 名家名言（Knuth / Dijkstra / 古诗文，22 条）、meme 圈内梗（20 条）、cheer 竞赛鸡汤（20 条）。删掉某个就是不用它，例如只留 [\"cheer\"] 就只推鸡汤。填错/写了个不存在的分类时会自动回退成「三类全开」，不会让日报少一块。自己加的自定义名言不受这个开关限制（它总是参与抽取）；不想让某一句出现，去面板「名言库」把它屏蔽或删掉。"
+  },
+  "daily_quote_extra": {
+    "description": "名言彩蛋：自定义名言（会与内置库一起抽）",
+    "type": "list",
+    "default": [],
+    "hint": "一行一条，例如：AC 不是终点，补题才是。留空 = 只用内置库。自定义的句子和内置库混在同一个池里抽；只要池里有自定义的，内置名言被抽到的概率就会降低。句子里的 { } 会被自动换成全角 ｛｝（半角会和模板占位符打架）。⚠️ 面板「名言库」里也能加（存 data/quotes.json，与这里合并并去重），两处都行、加起来算；想逐条看全部名言并屏蔽不合适的句子：打开插件面板 →「名言库」。"
+  },
+  "daily_quote_with_source": {
+    "description": "名言彩蛋：附上出处",
+    "type": "bool",
+    "default": true,
+    "hint": "开启后，有名家/古籍出处的名言会渲染成「正文 —— 出处」，例如「过早的优化是万恶之源。 —— Donald Knuth」。关掉则只显示正文（圈内梗与鸡汤本来就没有出处，不受影响）。"
+  },
+  "daily_quote_random_each_time": {
+    "description": "名言彩蛋：每条消息都重新抽（默认按天）",
+    "type": "bool",
+    "default": false,
+    "hint": "默认关闭 = 按「北京时间当天」抽一句：同一天里定时推送、/日报、面板连点「推送测试」、多个群分别渲染，看到的都是同一句，换一天自动换一句。打开 = 每次渲染都重新抽（同一个群一天里可能看到好几句不同的，面板点两次测试也会不一样）。"
+  },
+  "upcoming_title": {
+    "description": "/赛程 指令：列表标题",
+    "type": "string",
+    "default": "📅 未来 {days} 天 · 共 {count} 场",
+    "hint": "占位符：{days} 查询天数 / {count} 实际列出的场次 / {limit} 一次最多列几场 / {total} 同 {count}。{days} 口径 = 「今天起 N 个自然日」（**含今天剩余场次**，今天算第 1 天），与日报区块的「未来 N 天」不同；想写得更直白可以改成：📅 未来 {days} 天（含今日）· 共 {count} 场"
+  },
+  "upcoming_item": {
+    "description": "/赛程 指令：单场比赛模板",
+    "type": "text",
+    "default": "{short_date} {time} {weekday}  {emoji} {title}  {duration}\n🔗{url}",
+    "hint": "占位符：{short_date} 10-17（月-日）/ {date} 2026-10-17 / {time} 22:35 / {weekday} 周六 / {emoji} 平台小图标（🔵🟠）/ {title} 比赛名 / {duration} 时长（如 2h30m）/ {url} 链接 / {platform} 平台名 / {index} 序号。条目之间自动空一行；默认在比赛下一行附 🔗链接（可用上面的开关关掉）。"
+  },
+  "upcoming_empty": {
+    "description": "/赛程 指令：没有比赛时的提示",
+    "type": "text",
+    "default": "📅 未来 {days} 天没有找到比赛",
+    "hint": "占位符：{days} 查询天数 / {limit} 一次最多列几场。{days} 口径含今天（今天算第 1 天），所以「填 1 = 今天没有更多比赛了」。"
+  },
+  "upcoming_nodata": {
+    "description": "/赛程 指令：还没有抓到任何赛程数据时的提示",
+    "type": "text",
+    "default": "📭 还没有赛程数据，正在抓取，请稍后再试",
+    "hint": "首次部署、缓存为空时会回这句，同时后台自动抓一次。"
+  },
+  "upcoming_capped_note": {
+    "description": "/赛程 指令：参数超过天数上限时追加的提示",
+    "type": "text",
+    "default": "\n\nℹ️ 最多只能查看 {max_days} 天内的赛程，已按 {days} 天显示",
+    "hint": "占位符：{days} 实际使用天数 / {max_days} 允许的最大天数（默认 7）/ {limit} 一次最多列几场。开头的换行即空行，整项留空 = 不显示这句提示。"
+  },
+  "profile_week_days": {
+    "description": "战绩查询：统计「本周战绩」的天数",
+    "type": "int",
+    "default": 7,
+    "hint": "查 /cf 与 /nk 时，往前统计多少天内的比赛。默认 7 天（最近一周）。"
+  },
+  "ephemeral_card_without_avatar": {
+    "description": "战绩卡片：没取到平台头像的那次「不缓存、发完就删」",
+    "type": "bool",
+    "default": true,
+    "hint": "默认开启。开启后，**没取到平台头像**（卡片上只剩一个首字母方块）的那次查询会：① **不写进档案缓存**，下次查询重新联网；② 卡片图**发送后立即删除**，不占磁盘。1.7.2 起 QQ 头像兜底已删除，所以判定只剩两态：拿到平台头像（platform）= 正常卡片，只剩首字母块（placeholder）= 次品。关掉则回到老行为：不管有没有头像都照常缓存、卡片留在 cards/ 里等定期清理。"
+  },
+  "profile_card_enabled": {
+    "description": "战绩查询：渲染成图片卡片发送",
+    "type": "bool",
+    "default": true,
+    "hint": "开启后 /cf、/nk 的结果渲染成一张战绩卡片图（配色按平台 Rating 段位色，展示 Rating / 最高 Rating / 本周战绩，每场含过题数/总题数）。需要 AstrBot 环境装有 Pillow；关闭或渲染/发送失败时回退纯文本模板（不加任何额外提示，只在日志里体现），不影响查询本身。内存很紧（<2GB）时可关闭：省下 Pillow 约 10MB 常驻 + 每次渲染几 MB 峰值。"
+  },
+  "profile_cache_minutes": {
+    "description": "战绩查询：结果缓存时长（分钟）",
+    "type": "int",
+    "default": 10,
+    "hint": "同一个用户在这段时间内重复查询会直接用缓存，不再请求第三方接口。设为 0 不建议——会显著增加被风控的概率。第三方接口抽风/改版、或缓存里那半截数据看着不对时，不用等它过期：群里发 /清缓存 cf 或 /清缓存 nk（面板 ⑤ 区也有按钮），下一次查询就会重新联网取数。清缓存**不会**影响赛程缓存（比赛数据）。"
+  },
+  "profile_cooldown_seconds": {
+    "description": "战绩查询：同一人的查询冷却（秒）",
+    "type": "int",
+    "default": 15,
+    "hint": "同一个 QQ 用户两次查询之间的最小间隔，防止有人连着刷接口。0 表示不限制。"
+  },
+  "profile_result_cache_hours": {
+    "description": "战绩查询：单场比赛成绩的缓存时长（小时）",
+    "type": "int",
+    "default": 24,
+    "hint": "单场比赛的过题数一旦出榜就不会再变（每场只占几 KB），所以缓存可以设久一点：同一场比赛一周内只拉一次。默认 24 小时。"
+  },
+  "profile_problemset_ttl_hours": {
+    "description": "战绩查询：题库映射的缓存时长（小时）",
+    "type": "int",
+    "default": 24,
+    "hint": "各场比赛的「总题数」来自 Codeforces 全量题库（一次约 2.2MB，覆盖所有比赛）。插件启动时会后台预热一次，之后所有用户共用，按这个时长过期后重新拉。默认 24 小时。"
+  },
+  "profile_cache_max_entries": {
+    "description": "战绩查询：缓存条数上限",
+    "type": "int",
+    "default": 200,
+    "hint": "战绩缓存的条目总数上限（每个用户档案 / 每场成绩算一条）。超了会丢掉最早过期的那些——反正都是可重建的派生数据，丢了再查一次就好。全局共享的题库映射不参与淘汰。默认 200。"
+  },
+  "profile_status_count": {
+    "description": "战绩查询：CF 提交记录拉取条数（内存/耗时相关）",
+    "type": "int",
+    "default": 10000,
+    "hint": "每次 /cf 会拉该用户最近 N 条提交（用来算总过题数与各场过题数）。这一份响应约 123KB，解析出来的临时对象是插件最大的一笔瞬时内存（约 10~20MB）；把 N 调小（如 3000）能明显降低小内存机器的压力，代价是「刷题量极大的活跃账号」总过题数可能偏小、个别老比赛要多发一次轻量请求（每场 2.6KB）补齐。默认 10000。"
+  },
+  "card_cache_keep_days": {
+    "description": "战绩卡片图与头像缓存的保留天数",
+    "type": "int",
+    "default": 30,
+    "hint": "卡片图按「平台_用户名」同名覆盖、头像按 md5 命名，长期运行会攒下一堆文件（只占磁盘、不占内存）。插件每 cache_cleanup_minutes 分钟按「超龄 + 总量上限 500 个」清一次；另有两道体积兜底：总占用超过下面的「磁盘缓存体积上限」、或磁盘剩余低于「磁盘预留空间」时，都会按最早写入的删到安全水位。默认 30 天；磁盘紧张可调小到 7。"
+  },
+  "card_cache_max_mb": {
+    "description": "磁盘缓存体积上限（MB）",
+    "type": "int",
+    "default": 512,
+    "hint": "卡片图 + 头像缓存的总占用上限，默认 512 MB（按 1.5 GB 的盘定的：缓存占 1/3，其余留给系统和其它数据）。每次定期清理时统计整个 cards 目录（含 avatar_cache 子目录）的大小，一旦超过就按「最早写入的优先」删除，一直删到降回 80% 水位（默认约 410 MB）为止，避免刚删完又立刻被触发。⚠️ 只按体积删、不看文件名；被删的卡片图下次查询会重新生成、头像会重新下载，只是慢一点，不影响功能。填 0 表示关掉这道兜底（此时只按「保留天数 + 500 个文件」清）。注：这类缓存是磁盘文件，不占 AstrBot 进程内存；想按时间清请调上面的「保留天数」。"
+  },
+  "card_cache_min_free_mb": {
+    "description": "磁盘预留空间（MB）",
+    "type": "int",
+    "default": 300,
+    "hint": "给磁盘留的余量，默认 300 MB（约 1.5 GB 盘的 20%）。这条按「盘还剩多少」触发，和上面的缓存上限是两回事：一旦 AstrBot 数据盘（或容器）剩余空间低于这个值，插件就主动删图片缓存来腾地方 —— 即使缓存远没到自己那 512 MB 的上限也照删，必要时清空。小盘强烈建议保持默认；盘只有 1~1.5 GB 时可按「总量 × 20%」微调。填 0 表示不做余量保护（不建议，盘满了 AstrBot 会写不了数据）。⚠️ 清理只删可重建的图片缓存，从不碰订阅表、也不影响日报与指令；有战绩查询正在跑时会自动让路。"
+  },
+  "profile_template": {
+    "description": "战绩卡片：主体模板",
+    "type": "text",
+    "default": "💡{handle}\n🎈Rating：{rating}\n☁️最高Rating：{max_rating}\n🔺总过题：{solved}\n{week}",
+    "hint": "占位符：{handle} 昵称 / {rating} 当前 Rating / {max_rating} 最高 Rating / {solved} 总过题 / {rank_title} 段位 / {url} 主页链接 / {platform} 平台名 / {week} 本周战绩区块 / {days} 统计天数。占位符也支持中文写法，如 ｛最高Rating｝、｛过题数｝。"
+  },
+  "profile_week_section": {
+    "description": "战绩卡片：「本周比赛战绩」区块模板",
+    "type": "text",
+    "default": "— 本周比赛战绩 —\n{items}",
+    "hint": "占位符：{items} 下面每场比赛拼好的内容 / {count} 场次 / {week_label}「本周」/ {days} 天数。⚠️ 必须保留 {items}，否则只显示标题（漏写时插件会自动补上）。本周没有比赛时整块不显示。"
+  },
+  "profile_week_item": {
+    "description": "战绩卡片：单场比赛模板",
+    "type": "string",
+    "default": "🔸{name}\n✅{solved}/{total}🚩排名：{rank}",
+    "hint": "占位符：{name} 比赛名称 / {solved} 过题数 / {total} 总题数 / {rank} 排名 / {date} {time} 比赛时间 / {url} 比赛链接 / {rating_change} Rating 变化。"
+  },
+  "profile_week_empty": {
+    "description": "战绩卡片：本周没有比赛时的提示语",
+    "type": "text",
+    "default": "",
+    "hint": "留空 = 不显示（默认）。想显示就填，例如：— 本周比赛战绩 —\\n这周还没参加比赛哦，快来打一场吧！"
+  },
+  "profile_note": {
+    "description": "战绩卡片：底部小字（可选）",
+    "type": "text",
+    "default": "",
+    "hint": "留空 = 不显示（默认）。可用 {url} 主页链接、{date} 日期。例如：数据来自 {url}"
+  },
+  "admin_users": {
+    "description": "授权用户 ID 白名单",
+    "type": "list",
+    "default": [],
+    "hint": "允许使用管理指令（/订阅日报 /退订日报 /订阅列表 /刷新赛程 /推送测试 /提醒测试 /群备注 /清缓存）的用户 ID。怎么获取自己的 ID：在群里发 /whoami，把显示的「用户 ID」复制进来。注意：接 QQ 官方机器人时这里填的是 openid（一长串字符），不是 QQ 号；接 NapCat 等协议端时才是 QQ 号。"
+  },
+  "allow_group_admin": {
+    "description": "允许群主 / 群管理员使用管理指令",
+    "type": "bool",
+    "default": true,
+    "hint": "开启后，群内角色为群主或管理员的用户自动获得权限。⚠️ 注意：QQ 官方机器人的「获取群成员角色」接口目前是内邀制（错误码 11253），普通机器人拿不到角色，此项在官方适配器下通常不生效；协议端（NapCat/Lagrange）可正常生效。官方机器人请优先用上面的授权用户 ID 白名单。"
+  },
+  "admin_only_commands": {
+    "description": "需要授权才能使用的指令（旧项，建议改用「各指令权限等级」）",
+    "type": "list",
+    "default": [
+      "订阅日报",
+      "退订日报",
+      "订阅列表",
+      "刷新赛程"
+    ],
+    "hint": "以插件内注册的指令名填写。⚠️ 已被下面的「各指令权限等级」取代：只有命令行等级里没提到的指令，才会按这份名单判「需要授权」。两者都没提到的按默认（查询类开放、管理类需授权）。"
+  },
+  "command_permissions": {
+    "description": "各指令权限等级（逐条自定义，推荐）",
+    "type": "dict",
+    "default": {
+      "日报": "all",
+      "赛程": "all",
+      "cf": "all",
+      "nk": "all",
+      "whoami": "all",
+      "名言": "all",
+      "订阅日报": "admin",
+      "退订日报": "admin",
+      "订阅列表": "admin",
+      "刷新赛程": "admin",
+      "推送测试": "admin",
+      "提醒测试": "admin",
+      "群备注": "admin",
+      "清缓存": "admin"
+    },
+    "hint": "键 = 指令名，值 = 权限等级。四个可选等级：all 所有人可用 / admin 授权用户可用（AstrBot 管理员、白名单、群主·群管理员）/ strict 仅 AstrBot 管理员与白名单（忽略群主·群管理员）/ off 关闭该指令。没列出的指令沿用上面的旧名单或默认值；值写错时按 admin（从严）处理。例：想禁止群里查赛程就写 \"赛程\": \"off\"；想只让白名单用 /cf 就写 \"cf\": \"strict\"。各指令名：日报、赛程、cf、nk、whoami、名言、订阅日报、退订日报、订阅列表、刷新赛程、推送测试、提醒测试、群备注、清缓存。⚠️ whoami 建议保持 all，否则用户没法自助查看 ID 申请授权；推送测试 / 提醒测试会向群发消息、群备注会改会话映射表、清缓存会清掉所有人的战绩缓存，建议都保持 admin。"
+  },
+  "deny_template": {
+    "description": "无权限时的回复文案",
+    "type": "text",
+    "default": "前方的功能以后再来探索吧！趁这时间多多刷题哦！",
+    "hint": "任何人被权限拦住时回复这句话。可用占位符：{cmd} 指令名 / {user} 昵称 / {user_id} 用户 ID / {level} 权限等级值 / {need} 权限等级说明。支持写 \\n 换行，也认全角括号与中文名（｛指令｝、｛用户ID｝）。想让用户能自助申请授权就把 ID 带上，例如：前方的功能以后再来探索吧！趁这时间多多刷题哦！\\n（你的 ID：{user_id}）⚠️ 下面两项开启时，「无效的指令」也用这句话回复。"
+  },
+  "invalid_reply_like_deny": {
+    "description": "无效的指令：用与「无权限」相同的文案回复",
+    "type": "bool",
+    "default": true,
+    "hint": "开启后，本插件指令的无效调用——没带参数（如只发 /cf）、参数格式不对（如 /nk abc）、查不到该用户——都回复与「无权限」**完全同一句**文案（默认那句鼓励语），具体原因只写 AstrBot 日志。关闭则恢复原来的“用法说明 / 找不到该用户”提示。注意：查询超时、网络出错**不算**无效指令，始终回可重试的提示（如「⌛️ 查询超时了，请稍后再试」）。"
+  },
+  "unknown_command_reply": {
+    "description": "未识别的指令：也回复同一句文案",
+    "type": "bool",
+    "default": true,
+    "hint": "开启后，机器人被 @/唤醒时发来的、任何插件都没注册过的指令（如 /xyz）也回复与「无权限」相同的那句话，而不是沉默。只对「带唤醒前缀（默认 /）」的消息生效，纯聊天不受影响；指令名实时读 AstrBot 注册表，别的插件的指令不会被抢答；读不到注册表时保持沉默（宁可沉默也不误伤）。"
+  },
+  "silent_on_error": {
+    "description": "超时/网络错误：静默不回复（只写日志）",
+    "type": "bool",
+    "default": true,
+    "hint": "开启后，查询超时、请求失败、解析异常、插件内部异常都**不回复任何内容**，只在 AstrBot 日志里记录（日志会标注「-> 静默不回复」）。关闭则恢复原来可重试的提示，如「⌛️ 查询超时了，请稍后再试」「❌ 查询出错」。（「无效的指令」与「未识别的指令」不受此项影响，它们仍回无权限那一句。）"
+  }
+}

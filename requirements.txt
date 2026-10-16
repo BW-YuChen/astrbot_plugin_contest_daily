@@ -1,0 +1,4 @@
+# 消息模板与赛程抓取仅用 Python 标准库（urllib / json / re / html / datetime）。
+# 战绩卡片图渲染（/cf、/nk）额外需要 Pillow：AstrBot 本体通常已自带；
+# 没有时插件自动回退纯文本战绩模板，不影响查询功能。
+Pillow>=9.2

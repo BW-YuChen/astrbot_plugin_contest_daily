@@ -1,0 +1,12 @@
+name: astrbot_plugin_contest_daily
+display_name: 竞赛日报
+desc: 自动抓取 Codeforces / 牛客赛程，定时推送到 QQ 群，并在赛前 15 分钟提醒。支持群订阅管理、手动查询与 /cf、/nk 用户战绩查询（战绩卡头像取不到时降级为名字首字母），日报可每天带一句竞赛名言彩蛋（面板可逐条管理与屏蔽），并提供 /清缓存 一键清理战绩缓存。
+short_desc: CF/牛客赛程日报 + 赛前提醒 + 战绩查询 + 名言库
+version: 1.7.3
+author: Firefly_IV
+repo: https://github.com/BW-YuChen/astrbot_plugin_contest_daily
+support_platforms:
+  - qq_official
+  - qq_official_webhook
+  - aiocqhttp
+astrbot_version: ">=4.16,<5"
